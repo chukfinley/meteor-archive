@@ -2,10 +2,10 @@ name: Download Meteor Client
 
 on:
   schedule:
-    - cron: "*/5 * * * *" # Runs every 5 minutes
-  workflow_dispatch: # Allows manual triggering
+    - cron: "*/5 * * * *" # Läuft alle 5 Minuten
+  workflow_dispatch: # Erlaubt manuelles Auslösen
 
-# Add this permissions block to fix the 403 error
+# Berechtigungen für Push-Zugriff
 permissions:
   contents: write
 
@@ -18,12 +18,17 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Create downloads directory if it doesn't exist
+        run: mkdir -p downloads
+
       - name: Download Meteor Client (keep server filename)
+        working-directory: downloads
         run: |
           curl -LJO https://meteorclient.com/api/download
 
       - name: Get downloaded filename
         id: filename
+        working-directory: downloads
         run: |
           # Get the most recent .jar file in the directory
           FILE=$(ls -t *.jar | head -n1)
@@ -31,15 +36,22 @@ jobs:
 
       - name: Calculate MD5 hash
         id: hash
+        working-directory: downloads
         run: |
           md5sum "${{ steps.filename.outputs.filename }}" | awk '{print $1}' > md5.txt
           echo "md5=$(cat md5.txt)" >> $GITHUB_OUTPUT
 
       - name: Extract version from JAR (manifest)
         id: version
+        working-directory: downloads
         run: |
           unzip -p "${{ steps.filename.outputs.filename }}" META-INF/MANIFEST.MF | grep 'Implementation-Version' | awk '{print $2}' | tr -d '\r\n' > version.txt || echo "unknown" > version.txt
           echo "version=$(cat version.txt)" >> $GITHUB_OUTPUT
+
+      - name: Get current date
+        id: date
+        run: |
+          echo "date=$(date +'%Y-%m-%d %H:%M')" >> $GITHUB_OUTPUT
 
       - name: Check for existing version/hash
         id: check
@@ -50,24 +62,41 @@ jobs:
             echo "exists=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Update repo if new version
+      - name: Create or update README with table
         if: steps.check.outputs.exists == 'false'
         run: |
-          echo "## Meteor Client" > README.md
-          echo "" >> README.md
-          echo "**Filename:** ${{ steps.filename.outputs.filename }}" >> README.md
-          echo "" >> README.md
-          echo "**Version:** ${{ steps.version.outputs.version }}" >> README.md
-          echo "" >> README.md
-          echo "**MD5 Hash:** ${{ steps.hash.outputs.md5 }}" >> README.md
+          if [ ! -f README.md ]; then
+            # Create new README with table header
+            echo "# Meteor Client Archive" > README.md
+            echo "" >> README.md
+            echo "Automatisch aktualisiertes Archiv der Meteor Client Releases." >> README.md
+            echo "" >> README.md
+            echo "## Versionen" >> README.md
+            echo "" >> README.md
+            echo "| Datum | Dateiname | Version | MD5 Hash |" >> README.md
+            echo "|-------|-----------|---------|----------|" >> README.md
+          fi
+
+          # Check if table exists, if not create it
+          if ! grep -q "| Datum | Dateiname | Version | MD5 Hash |" README.md; then
+            echo "" >> README.md
+            echo "## Versionen" >> README.md
+            echo "" >> README.md
+            echo "| Datum | Dateiname | Version | MD5 Hash |" >> README.md
+            echo "|-------|-----------|---------|----------|" >> README.md
+          fi
+
+          # Add new row to table (at the top, after header)
+          sed -i "/^|-------|-----------|---------|----------|$/a | ${{ steps.date.outputs.date }} | [${{ steps.filename.outputs.filename }}](downloads/${{ steps.filename.outputs.filename }}) | ${{ steps.version.outputs.version }} | \`${{ steps.hash.outputs.md5 }}\` |" README.md
+
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add "${{ steps.filename.outputs.filename }}" README.md
-          git commit -m "Update Meteor Client to version ${{ steps.version.outputs.version }}"
-          # Using the token explicitly in the push URL
+          git add downloads/"${{ steps.filename.outputs.filename }}" README.md
+          git commit -m "Add Meteor Client version ${{ steps.version.outputs.version }} ($(date +'%Y-%m-%d'))"
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:${{ github.ref_name }}
 
       - name: Clean up if not new
         if: steps.check.outputs.exists == 'true'
+        working-directory: downloads
         run: |
           rm -f "${{ steps.filename.outputs.filename }}"
