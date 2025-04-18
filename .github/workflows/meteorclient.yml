@@ -2,7 +2,7 @@ name: Download Meteor Client
 
 on:
   schedule:
-    - cron: "0 0 * * *" # Runs every day at midnight UTC
+    - cron: "* * * * *" # Runs every day at midnight UTC
   workflow_dispatch:
 
 jobs:
