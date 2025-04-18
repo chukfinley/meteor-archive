@@ -2,7 +2,7 @@ name: Download Meteor Client
 
 on:
   schedule:
-    - cron: '0 0 * * *' # Runs every day at midnight UTC
+    - cron: '0 0 * * *'  # Runs every 5 minutes
   workflow_dispatch:  # Allows manual triggering
 
 # Permissions for push access
@@ -34,6 +34,13 @@ jobs:
           FILE=$(ls -t *.jar | head -n1)
           echo "filename=$FILE" >> $GITHUB_OUTPUT
 
+      - name: Extract version from filename
+        id: filename_version
+        run: |
+          # Extract version from filename (e.g., meteor-client-1.21.5-6.jar -> 1.21.5-6)
+          VERSION=$(echo "${{ steps.filename.outputs.filename }}" | grep -oP 'meteor-client-\K[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9]+)?' || echo "unknown")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
       - name: Calculate MD5 hash
         id: hash
         working-directory: meteor-client
@@ -41,8 +48,8 @@ jobs:
           md5sum "${{ steps.filename.outputs.filename }}" | awk '{print $1}' > md5.txt
           echo "md5=$(cat md5.txt)" >> $GITHUB_OUTPUT
 
-      - name: Extract version from JAR (manifest)
-        id: version
+      - name: Extract version from JAR manifest (backup)
+        id: manifest_version
         working-directory: meteor-client
         run: |
           unzip -p "${{ steps.filename.outputs.filename }}" META-INF/MANIFEST.MF | grep 'Implementation-Version' | awk '{print $2}' | tr -d '\r\n' > version.txt || echo "unknown" > version.txt
@@ -60,6 +67,16 @@ jobs:
             grep -q "${{ steps.hash.outputs.md5 }}" README.md && echo "exists=true" >> $GITHUB_OUTPUT || echo "exists=false" >> $GITHUB_OUTPUT
           else
             echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Determine final version
+        id: final_version
+        run: |
+          # Use filename version if available, otherwise use manifest version
+          if [ "${{ steps.filename_version.outputs.version }}" != "unknown" ]; then
+            echo "version=${{ steps.filename_version.outputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${{ steps.manifest_version.outputs.version }}" >> $GITHUB_OUTPUT
           fi
 
       - name: Create or update README with table
@@ -87,12 +104,12 @@ jobs:
           fi
           
           # Add new row to table (at the top, after header)
-          sed -i "/^|------|----------|---------|----------|$/a | ${{ steps.date.outputs.date }} | [${{ steps.filename.outputs.filename }}](meteor-client/${{ steps.filename.outputs.filename }}) | ${{ steps.version.outputs.version }} | \`${{ steps.hash.outputs.md5 }}\` |" README.md
+          sed -i "/^|------|----------|---------|----------|$/a | ${{ steps.date.outputs.date }} | [${{ steps.filename.outputs.filename }}](meteor-client/${{ steps.filename.outputs.filename }}) | ${{ steps.final_version.outputs.version }} | \`${{ steps.hash.outputs.md5 }}\` |" README.md
           
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add meteor-client/"${{ steps.filename.outputs.filename }}" README.md
-          git commit -m "Add Meteor Client version ${{ steps.version.outputs.version }} ($(date +'%Y-%m-%d'))"
+          git commit -m "Add Meteor Client version ${{ steps.final_version.outputs.version }} ($(date +'%Y-%m-%d'))"
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:${{ github.ref_name }}
 
       - name: Clean up if not new
