@@ -1,0 +1,67 @@
+name: Download Meteor Client
+
+on:
+  schedule:
+    - cron: "0 0 * * *" # Runs every day at midnight UTC
+  workflow_dispatch:
+
+jobs:
+  download-and-update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download Meteor Client (keep server filename)
+        run: |
+          curl -LJO https://meteorclient.com/api/download
+
+      - name: Get downloaded filename
+        id: filename
+        run: |
+          # Get the most recent .jar file in the directory
+          FILE=$(ls -t *.jar | head -n1)
+          echo "filename=$FILE" >> $GITHUB_OUTPUT
+
+      - name: Calculate MD5 hash
+        id: hash
+        run: |
+          md5sum "${{ steps.filename.outputs.filename }}" | awk '{print $1}' > md5.txt
+          echo "md5=$(cat md5.txt)" >> $GITHUB_OUTPUT
+
+      - name: Extract version from JAR (manifest)
+        id: version
+        run: |
+          unzip -p "${{ steps.filename.outputs.filename }}" META-INF/MANIFEST.MF | grep 'Implementation-Version' | awk '{print $2}' | tr -d '\r\n' > version.txt || echo "unknown" > version.txt
+          echo "version=$(cat version.txt)" >> $GITHUB_OUTPUT
+
+      - name: Check for existing version/hash
+        id: check
+        run: |
+          if [ -f README.md ]; then
+            grep -q "${{ steps.hash.outputs.md5 }}" README.md && echo "exists=true" >> $GITHUB_OUTPUT || echo "exists=false" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Update repo if new version
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          echo "## Meteor Client" > README.md
+          echo "" >> README.md
+          echo "**Filename:** ${{ steps.filename.outputs.filename }}" >> README.md
+          echo "" >> README.md
+          echo "**Version:** ${{ steps.version.outputs.version }}" >> README.md
+          echo "" >> README.md
+          echo "**MD5 Hash:** ${{ steps.hash.outputs.md5 }}" >> README.md
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "${{ steps.filename.outputs.filename }}" README.md
+          git commit -m "Update Meteor Client to version ${{ steps.version.outputs.version }}"
+          git push
+
+      - name: Clean up if not new
+        if: steps.check.outputs.exists == 'true'
+        run: |
+          rm -f "${{ steps.filename.outputs.filename }}"
