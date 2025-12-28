@@ -4,6 +4,7 @@
 
 | Date | Filename | Version | MD5 Hash |
 |------|----------|---------|----------|
+| 2025-12-28 00:27 | [meteor-client-1.21.11-25.jar](meteor-client/meteor-client-1.21.11-25.jar) | 1.21.11-25 | `e506def33b69fe4aea2c218f13b0ccbc` |
 | 2025-12-25 00:23 | [meteor-client-1.21.11-24.jar](meteor-client/meteor-client-1.21.11-24.jar) | 1.21.11-24 | `c0115fb1353b7ccd37d730f2c9020983` |
 | 2025-12-22 00:25 | [meteor-client-1.21.11-22.jar](meteor-client/meteor-client-1.21.11-22.jar) | 1.21.11-22 | `afa034642aa48eee7dc91cc28e231419` |
 | 2025-12-20 00:23 | [meteor-client-1.21.11-21.jar](meteor-client/meteor-client-1.21.11-21.jar) | 1.21.11-21 | `2ecde33b8d2f2a92c94cd69e8152b2a6` |
