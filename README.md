@@ -4,6 +4,7 @@
 
 | Date | Filename | Version | MD5 Hash |
 |------|----------|---------|----------|
+| 2026-06-15 01:01 | [meteor-client-26.1.2-31.jar](meteor-client/meteor-client-26.1.2-31.jar) | 26.1.2-31 | `e69b8ba4852b9c1152373e9877a3741b` |
 | 2026-06-14 00:59 | [meteor-client-26.1.2-27.jar](meteor-client/meteor-client-26.1.2-27.jar) | 26.1.2-27 | `393964f872e91fd87cb45fe82fe2b526` |
 | 2026-05-22 00:51 | [meteor-client-26.1.2-22.jar](meteor-client/meteor-client-26.1.2-22.jar) | 26.1.2-22 | `38d559bd0020121c253d7c65ec0c51d4` |
 | 2026-05-21 00:53 | [meteor-client-26.1.2-21.jar](meteor-client/meteor-client-26.1.2-21.jar) | 26.1.2-21 | `f4f7ff6cfded833e865b88e1c62446f8` |
